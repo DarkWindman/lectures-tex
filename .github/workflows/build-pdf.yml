@@ -18,30 +18,64 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository code
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      # 2. Compile LaTeX book to PDF
+      # TeX Live 2025 = minted 3.6.0 — та сама версія, що збирає книгу локально.
+      #
+      # python3 потрібен, бо latexminted (бекенд minted 3) — це Python-скрипт;
+      # в образі texlive-alpine Python не встановлений.
+      # pip install latexminted НЕ потрібен: TeX Live постачає власну копію,
+      # а pip-версія перекриває її в PATH і ламає збірку.
+      #
+      # args задані явно, БЕЗ -halt-on-error: інакше entrypoint.sh підставляє
+      # свої дефолти з -halt-on-error, і одна помилка вбиває весь ран.
       - name: Compile LaTeX
+        id: compile
+        continue-on-error: true
         uses: xu-cheng/latex-action@v4
         with:
           root_file: book.tex
-          texlive_version: 2026
+          texlive_version: 2025
           os: alpine
-          extra_system_packages: "py3-pygments py3-pip"
-          pre_compile: "pip install --break-system-packages latexminted"
+          extra_system_packages: "python3 py3-pygments"
           latexmk_shell_escape: true
+          args: -pdf -file-line-error -interaction=nonstopmode
 
-      # 3. Save PDF as an Actions artifact (for downloading from the workflow run tab)
+      # Показує справжні помилки LaTeX замість голого "exit code 12".
+      - name: Show LaTeX errors
+        if: always()
+        run: |
+          echo "::group::Errors from book.log"
+          grep -nE "^(!|.*:[0-9]+:)|Fatal error|LaTeX Error|Package .* Error" book.log || echo "no matches"
+          echo "::endgroup::"
+          echo "::group::Last 150 lines of book.log"
+          tail -150 book.log || echo "book.log missing"
+          echo "::endgroup::"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latex-logs
+          path: |
+            *.log
+            _minted/**
+          if-no-files-found: ignore
+
+      - name: Fail if compile failed
+        if: steps.compile.outcome == 'failure'
+        run: exit 1
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: compiled-book
           path: book.pdf
 
-      # 4. Create or update the 'latest' GitHub Release
+      # Реліз лише з main, а не з кожної гілки.
       - name: Publish to GitHub Release
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest

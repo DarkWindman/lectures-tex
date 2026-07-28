@@ -1,0 +1,38 @@
+% MWE: чи винен arydshln у "Extra }, or forgotten $"?
+% Порядок пакетів — точно як у config/zkdl-template.cls (рядки 60-65).
+\documentclass{article}
+\usepackage[T1,T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{float}
+\usepackage[dvipsnames,table]{xcolor}
+\usepackage{tabularx}
+\usepackage{blkarray}
+\usepackage{arydshln}     % <<< ТУМБЛЕР: закоментуйте цей рядок і запустіть ще раз
+\usepackage{makecell}
+\begin{document}
+\begin{table}[H]
+    \centering
+    \begin{tabularx}{\textwidth}{ccX}
+        \Xhline{3\arrayrulewidth}
+        \rowcolor{blue!30}\textbf{Section} & \textbf{Topic} & \textbf{Key Concepts} \\
+        \Xhline{3\arrayrulewidth}
+        \rowcolor{blue!10}\ref{section:number-theory} & Number Theory & Modular
+        Arithmetic, Ring $\mathbb{Z}_n$ and field $\mathbb{Z}_n^{\times}$,
+        Fermat's Little Theorem \\
+        \hline
+        \rowcolor{blue!20}\ref{section:abstract-algebra} & Abstract Algebra &
+        Groups, Subgroups, Fields, Prime field $\mathbb{F}_p$, Isomorphisms,
+        Automorphisms \\
+        \hline
+        \rowcolor{blue!10}\ref{section:polynomial-rings} & Polynomials & Divisibility, Lagrange Interpolation, Schwartz-Zippel Lemma \\
+        \hline
+        \rowcolor{blue!20}\ref{section:linear-algebra} & Linear Algebra Basics & Basic Operations over Vectors and Matrices \\
+        \hline
+        \rowcolor{blue!10}\ref{section:finite-fields} & Fields Extensions & Definition of $\mathbb{F}_{p^m}$, Field Multiplicative Subgroup, Algebraic Closure \\
+        \Xhline{3\arrayrulewidth}
+    \end{tabularx}
+    \caption{Topics covered in Part I}
+    \label{tab:essentialls}
+\end{table}
+\end{document}

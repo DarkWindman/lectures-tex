@@ -61,7 +61,7 @@
 \RequirePackage{opencolor}
 \RequirePackage{tabularx}
 \RequirePackage{blkarray}
-\RequirePackage{arydshln}
+%\RequirePackage{arydshln}
 \RequirePackage{makecell}
 \RequirePackage[labelfont=bf]{caption}
 \setlength{\belowcaptionskip}{0mm}
