@@ -273,6 +273,8 @@ One of the key advantages of a Merkle tree is that it allows for the selective d
 
 \subsubsection{Pedersen Polynomial Commitment Scheme}
 
+In the previous subsections, we looked at the \emph{commit-reveal} schemes, which just compute a commitment to a message and then require the committer (or prover) to open that message to convince the verifier that the computed commitment is valid. However, sometimes we want to make a commitment that lets us prove statements about the underlying data without ever revealing it. For example, let us consider such schemes for polynomials.
+
 \textbf{Polynomial commitment schemes} can be used to prove that the committed polynomial satisfies certain properties (most commonly, an evaluation condition $f(\rho) = y$ for a randomly chosen point $\rho$ and that $\deg f < d$), without revealing what the polynomial is.
 The commitment is generally succinct, which means that it is much smaller than the polynomial it represents. Typically, polynomial commitment scheme is a heart of any complex \textit{zero-knowledge} proof system.
 
@@ -284,6 +286,8 @@ The commitment is generally succinct, which means that it is much smaller than t
     This might be confusing given that previously considered protocols are \emph{non-interactive}.
     However, using tools from \Cref{section:intro-zk} (specifically, \Cref{subsection:fiat-shamir}), we will be able to make them non-interactive rather straightforwardly.
 \end{remark}
+
+Since the Pedersen vector commitment scheme requires revealing the whole vector for verification, we need to take a different approach.
 
 \textbf{Pedersen Polynomial Commitment Scheme.} Suppose the prover wants to convince the verifier that he knows evaluation of a polynomial $f \in \mathbb{F}_{q}[T]^{<d}$ at some point $\rho \in \mathbb{F}_q$ (\textit{i.e.}, $f(\rho) = y$) without revealing anything about $f$. Let $\mathbb{G}$ be a cyclic group of order $q$ where the \textit{discrete logarithm} problem is hard. 
 Let $g,h \in \mathbb{G}$ be points with unknown discrete logarithms between them. Then, we define the basic polynomial commitment scheme as follows.
@@ -341,28 +345,28 @@ We provide the following statement to prove security of the aforementioned schem
     For more details, refer to \Cref{subsection:simulation}.
 \end{remark}
 
+Analyzing the scheme, one can notice that the Pedersen polynomial commitment scheme is just a combination of $d$ calls to the plain Pedersen commitment scheme: the resulting commitment is a vector of $d$ group elements, each being a commitment to the corresponding coefficient of the polynomial. This means that the scheme is not succinct, as the size of the commitment grows linearly with the degree of the polynomial. Since we want the scheme to be both succinct and computationally efficient, let us consider the following scheme, which removes these drawbacks.
+
 \subsubsection{KZG Commitment Scheme}
 
-Unfortunately, the scheme from the previous section is not succinct, as the size of the commitment grows linearly with the degree of the polynomial.
-However, using pairing (\Cref{section:ecpairing}), one can build the commitment scheme that requires only a single point in $\mathbb{G}$ to commit to the whole polynomial.
-This is exactly the KZG scheme that we describe in this section.
+In this section, we describe the KZG commitment scheme \cite{kate2010constant}. This scheme is succinct and requires only a single point in $\mathbb{G}$ to commit to the whole polynomial, with pairings (\Cref{section:ecpairing}) used to verify openings.
 
 \textbf{Basic idea.} As before, suppose the prover wants to convince the verifier that $f(\rho)=y$ for some random point $\rho \leftarrowS \mathbb{F}_q$ chosen by the verifier.
 Now we employ \Cref{th:root-div}. Notice that $\rho$ is a zero of a polynomial $f(T)-y$. 
-Consequently, there exists some polynomial $g \in \mathbb{F}_q[T]^{<d}$ (commonly referred to as a \emph{quotient polynomial}) such that $f(T)-y = (T-\rho)g(T)$.
+Consequently, there exists some polynomial $u \in \mathbb{F}_q[T]^{<d}$ (commonly referred to as a \emph{quotient polynomial}) such that $f(T)-y = (T-\rho)u(T)$.
 
 To turn this into a sound scheme, before receiving $\rho$, the prover must first \emph{commit} to polynomial $f$ (call it $\mathsf{com}(f)$).
-After obtaining $\rho$, the prover commits to $q$ (call it $\mathsf{com}(q)$) and then the verifier must check the identity $f(T)-y = (T-\rho)g(T)$.
+After obtaining $\rho$, the prover commits to $u$ (call it $\mathsf{com}(u)$) and then the verifier must check the identity $f(T)-y = (T-\rho)u(T)$.
 This check is most efficiently done using \textit{Schwartz-Zippel lemma} (\Cref{lemma:one-sz}).
-Specifically, the verifier samples another challenge $\tau \leftarrowS \mathbb{F}_q$ and checks whether $f(\tau)-y=(\tau-\rho)g(\tau)$ using $\mathsf{com}(f)$ and $\mathsf{com}(g)$.
+Specifically, the verifier samples another challenge $\tau \leftarrowS \mathbb{F}_q$ and checks whether $f(\tau)-y=(\tau-\rho)u(\tau)$ using $\mathsf{com}(f)$ and $\mathsf{com}(u)$.
 However, how exactly can we commit to these polynomials?
 
 \textbf{Committing to polynomials.} Let $\mathbb{G}_1$ and $\mathbb{G}_2$ be two cyclic groups with corresponding generators $g_1,g_2$.
 Assume that we have a secure and efficient pairing $e: \mathbb{G}_1 \times \mathbb{G}_2 \to \mathbb{G}_T$.
 To commit to a polynomial $f \in \mathbb{F}_q[T]^{<d}$, we compute $\mathsf{com}(f) \gets g_1^{f(\tau)}$.
-Then, using two commitments $\mathsf{com}(f)$ and $\mathsf{com}(g)$, we can do the main using
+Then, using two commitments $\mathsf{com}(f)$ and $\mathsf{com}(u)$, we can do the main using
 \begin{equation*}
-    e(\mathsf{com}(f)/g_1^y, g_2) = e(\mathsf{com}(g), g_2^{\tau-\rho}).
+    e(\mathsf{com}(f)/g_1^y, g_2) = e(\mathsf{com}(u), g_2^{\tau-\rho}).
 \end{equation*}
 
 However, notice the following crucial problem: the commitment uses point $\tau$ \emph{before} the verifier sends the challenge $\rho$.
@@ -425,12 +429,12 @@ Consequently, we build the following evaluation proof protocol.
         \end{algoen}
         \item $\mathsf{Prove}(\mathsf{pp},f,\rho,y) \to \pi$: the prover conducts the following steps: 
         \begin{algoen}
-            \item compute $g(T) \gets (f(T)-y)/(T-\rho)$ over $\mathbb{F}_q[T]$;
-            \item \textbf{output} $\pi \gets (\Pi_{\text{KZG}}.\mathsf{Com}(f), \Pi_{\text{KZG}}.\mathsf{Com}(g))$.
+            \item compute $u(T) \gets (f(T)-y)/(T-\rho)$ over $\mathbb{F}_q[T]$;
+            \item \textbf{output} $\pi \gets (\Pi_{\text{KZG}}.\mathsf{Com}(f), \Pi_{\text{KZG}}.\mathsf{Com}(u))$.
         \end{algoen}
-        \item $\mathsf{Verify}(\pi, \rho, y)$: verifier parses $(\mathsf{com}(f), \mathsf{com}(g)) \gets \pi$ and checks
+        \item $\mathsf{Verify}(\pi, \rho, y)$: verifier parses $(\mathsf{com}(f), \mathsf{com}(u)) \gets \pi$ and checks
         \begin{equation*}
-            e(\mathsf{com}(f)/g_1^y, g_2) = e(\mathsf{com}(g), g_2^{\tau}/g_2^{\rho}).
+            e(\mathsf{com}(f)/g_1^y, g_2) = e(\mathsf{com}(u), g_2^{\tau}/g_2^{\rho}).
         \end{equation*}
     \end{itemize}
 \end{definition}
@@ -495,18 +499,18 @@ should be hashed:
 \end{enumerate}
 
 \textbf{Exercise 4.} Given a polynomial $f(T) = T^3 - 10T^2 + 31T - 30$, Oleksandr wants to prove that $f(2)=0$. 
-To do that, according to the KZG commitment scheme (\Cref{def:kzg-proof}), he constructs the quotient polynomial $g(T)$ and wants 
-to show that $f(\tau) \cdot (\tau - 2) = g(\tau)$. Assuming Oleksandr has conducted these steps correctly, 
-what value of $g(T)$ has Oleksandr calculated?
+To do that, according to the KZG commitment scheme (\Cref{def:kzg-proof}), he constructs the quotient polynomial $u(T)$ and wants 
+to show that $f(\tau) \cdot (\tau - 2) = u(\tau)$. Assuming Oleksandr has conducted these steps correctly, 
+what value of $u(T)$ has Oleksandr calculated?
 
 \vspace{-3mm}
 
 \begin{multicols}{2}
     \begin{enumerate}[(A)]
-        \item $g(T) = 2T^2 + 4T - 6$
-        \item $g(T) = T^3 - 10T^2 + 30T - 28$
-        \item $g(T) = T^2 - 8T + 15$
-        \item $g(T) = T^2 + 5T + 18$
+        \item $u(T) = 2T^2 + 4T - 6$
+        \item $u(T) = T^3 - 10T^2 + 30T - 28$
+        \item $u(T) = T^2 - 8T + 15$
+        \item $u(T) = T^2 + 5T + 18$
     \end{enumerate}
 \end{multicols}
 
